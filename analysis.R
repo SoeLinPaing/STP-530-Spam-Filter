@@ -276,3 +276,29 @@ pred[mod.prob$"1">0.5] = 1
 tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
 tab
 
+
+################################################################################
+#Machine learning models
+#Naive Bayes
+new_train <- Train[1:57]
+library('naivebayes')
+naive_bayes.model <- naive_bayes(factor(Train$V58) ~ ., data = new_train, usekernel = T) 
+summary(naive_bayes.model)
+plot(naive_bayes.model)
+
+actual_outcome = factor(Test$V58)
+mod.prob = predict(naive_bayes.model, Test)
+# Marking the cases where probability is greater that 50% as "yes" for spam and marking
+tab = confusionMatrix(mod.prob,actual_outcome)
+tab
+
+
+######################
+#Random forest
+library('randomForest')
+RF.model = randomForest(factor(Train$V58)~.,new_train, ntree = 50, mtry = 19, importance= TRUE)
+
+mod.prob = predict(RF.model, Test)
+# Marking the cases where probability is greater that 50% as "yes" for spam and marking
+tab_RF = confusionMatrix(mod.prob,actual_outcome)
+tab_RF
