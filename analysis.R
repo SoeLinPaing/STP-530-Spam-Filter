@@ -88,6 +88,7 @@ residualPlot(model)
 manual.large.model <- glm(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
              + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V33 + V35 + V36 + 
              + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, family = 'binomial')
+#43 predictors
 
 summary(manual.large.model)
 
@@ -104,7 +105,7 @@ lrtest(manual.large.model, manual.small.model)
 #according to likelihood ratio test, p value is very small close to 0. Thus, we reject null hypothesis and use full model.
 
 #2. Based on the multicolinearity test, the 32 and 34 should be rejected. However, they were already rejected based on p value criterion.
-#10, 14, 41 are lacking in manually reduced model. (mail, report,cs)
+#10, 14 are not in the AIC model. 41 is not in manually reduced model. (mail, report,cs)
 ################################################################################
 # Reduced model using Automated forward selection with AIC
 min.mod <- glm(V58 ~ 1, data=Train, family=binomial)
@@ -123,9 +124,12 @@ reduced.mod <- glm(formula = V58 ~ V53 + V7 + V25 + V27 + V56 + V16 + V46 +
         V57 + V8 + V44 + V20 + V33 + V6 + V29 + V43 + V4 + V36 + 
         V39 + V54 + V49 + V47 + V19 + V35 + V9 + V28 + V26 + V2 + 
         V15 + V38 + V30 + V22 + V12, family = binomial, data = Train)
-
+#42 predictors
 #V2+V4+V5+V6+V7+V8+V9+V12+V15+V16+V17+V19+V20+V21+V22+V23+V24+V25+V26+V27+V28+V29
 #+V30+V33+V35+V36+V38+V39+V41+V42+V43+V44+V45+V46+V47+V48+V49+V52+V53+V54+V56+V57+
+
+################################################################################
+#Compare manual model vs AIC using confusion matrix because they are not nested models
 
 ################################################################################
 #interaction model. initial model for it is from the reduced model 

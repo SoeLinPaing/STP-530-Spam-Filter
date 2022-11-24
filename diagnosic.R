@@ -277,15 +277,17 @@ hist(cs) #V41
 hist(mail) #V10
 hist(report) #V14
 
-par(mfrow=c(1,2))
+#in manual model
+par(mfrow=c(1,2)) #10
 hist(spam$mail)
 hist(non.spam$mail)
 
-par(mfrow=c(1,2))
+par(mfrow=c(1,2)) #14
 hist(spam$report)
 hist(non.spam$report)
 
-par(mfrow=c(1,2))
+#not in manual model
+par(mfrow=c(1,2)) #41
 hist(spam$cs)
 hist(non.spam$cs)
 
