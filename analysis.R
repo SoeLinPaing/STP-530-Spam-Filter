@@ -104,8 +104,7 @@ lrtest(manual.large.model, manual.small.model)
 #according to likelihood ratio test, p value is very small close to 0. Thus, we reject null hypothesis and use full model.
 
 #2. Based on the multicolinearity test, the 32 and 34 should be rejected. However, they were already rejected based on p value criterion.
-#10, 14, 41 are lacking in manually reduced model.
-
+#10, 14, 41 are lacking in manually reduced model. (mail, report,cs)
 ################################################################################
 # Reduced model using Automated forward selection with AIC
 min.mod <- glm(V58 ~ 1, data=Train, family=binomial)
@@ -177,9 +176,9 @@ eachfold
 
 ##########################
 #manually reduced model
-manual.large.model <- glm(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
+manual.large.model <- train(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
                           + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V33 + V35 + V36 + 
-                            + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, family = 'binomial')
+                            + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, method = "glm", family = 'binomial', trControl = ctrl)
 
 pred <- manual.large.model$pred
 pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
@@ -235,6 +234,17 @@ eachfold
 
 #Testing full model
 mod.prob = predict(full_mod, Test, type ="prob")
+# Marking the cases where probability is greater that 50% as "yes" for spam and marking
+pred = rep("0", nrow(Test))
+pred[mod.prob$"1">0.5] = 1
+
+tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
+tab
+
+####################
+#Testing manually reduced model
+#Testing full model
+mod.prob = predict(manual.large.model, Test, type ="prob")
 # Marking the cases where probability is greater that 50% as "yes" for spam and marking
 pred = rep("0", nrow(Test))
 pred[mod.prob$"1">0.5] = 1
