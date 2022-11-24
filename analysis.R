@@ -1,5 +1,5 @@
 rm(list=ls()) # Clean up the workspace for the new analysis
-options(max.print = 10000)
+options(max.print = 100000)
 
 library(dplyr)
 library(car)
@@ -35,11 +35,17 @@ summary(model)
 
 #################################################################################
 #Multicollinearity check
-linear_model <- lm(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
+linear_model <- lm(V1 ~ V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
              + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V31 + V32 + V33 + V34 + V35 + V36 + V37 
              + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
-             + V56 + V57 , data = Train, family = 'binomial')
+             + V56 + V57 , data = Train)
 vif(linear_model)
+
+linear_model1 <- lm(V1 ~ V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
+                   + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V31 + V32 + V33 + V34 + V35 + V36 + V37 
+                   + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
+                   + V56 + V57 , data = Train, family = 'binomial')
+vif(linear_model1)
 #v32 and v34 has over 100 vif, remove them
 
 #############################
@@ -63,9 +69,10 @@ influencePlot(model)
 
 ############################
 #Find the influential points using DFBETA
-dfbeta_score <- dfbeta(model)
-subset(melt(dfbeta_score),value>2)
-subset(melt(dfbeta_score),value< -2)
+dfbeta_score <- dfbeta
+dfbeta_score
+subset(melt(dfbeta_score),value > 2)
+subset(melt(dfbeta_score),value < -2)
 
 
 ############################
@@ -73,8 +80,31 @@ subset(melt(dfbeta_score),value< -2)
 residualPlot(model)
 
 
+###############################################################################
+#Reduce model manually
+#Two criterions are considered
+#1.Based on the full model, we will get rid of the predictors which pvalue is greater than 0.25
 
+manual.large.model <- glm(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
+             + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V33 + V35 + V36 + 
+             + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, family = 'binomial')
 
+summary(manual.large.model)
+
+manual.small.model <- glm(V58 ~  V2 + V5 + V6 + V7 + V8 + V9 + V15 + V16 + V17 + V19 
+                          + V20 + V21 + V23 + V24 + V25 + V26 + V27 + V28 + V33 + V35 + V36 + 
+                             V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V56 + V57 , data = Train, family = 'binomial')
+
+summary(manual.small.model)
+
+library(lmtest)
+lrtest(manual.large.model, manual.small.model)
+#null: use reduced model
+#alternative: use full model
+#according to likelihood ratio test, p value is very small close to 0. Thus, we reject null hypothesis and use full model.
+
+#2. Based on the multicolinearity test, the 32 and 34 should be rejected. However, they were already rejected based on p value criterion.
+#10, 14, 41 are lacking in manually reduced model.
 
 ################################################################################
 # Reduced model using Automated forward selection with AIC
@@ -95,6 +125,8 @@ reduced.mod <- glm(formula = V58 ~ V53 + V7 + V25 + V27 + V56 + V16 + V46 +
         V39 + V54 + V49 + V47 + V19 + V35 + V9 + V28 + V26 + V2 + 
         V15 + V38 + V30 + V22 + V12, family = binomial, data = Train)
 
+#V2+V4+V5+V6+V7+V8+V9+V12+V15+V16+V17+V19+V20+V21+V22+V23+V24+V25+V26+V27+V28+V29
+#+V30+V33+V35+V36+V38+V39+V41+V42+V43+V44+V45+V46+V47+V48+V49+V52+V53+V54+V56+V57+
 
 ################################################################################
 #interaction model. initial model for it is from the reduced model 
@@ -138,6 +170,20 @@ full_mod <- train(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 +
 pred <- full_mod$pred
 pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
 eachfold <- pred %>%  
+  group_by(Resample) %>%                         
+  summarise_at(vars(equal),                     
+               list(Accuracy = mean))              
+eachfold
+
+##########################
+#manually reduced model
+manual.large.model <- glm(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
+                          + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V33 + V35 + V36 + 
+                            + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, family = 'binomial')
+
+pred <- manual.large.model$pred
+pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
+eachfold <- pred %>%                                        
   group_by(Resample) %>%                         
   summarise_at(vars(equal),                     
                list(Accuracy = mean))              

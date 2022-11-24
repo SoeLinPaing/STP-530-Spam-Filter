@@ -11,7 +11,6 @@ ylabel('AIC')
 xlabel('iteration')
 title('Model reduction using AIC')
 
-inter_AIC = 
 
 
 figure
