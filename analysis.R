@@ -49,15 +49,17 @@ vif(linear_model1)
 #v32 and v34 has over 100 vif, remove them
 
 #############################
-#Using correlation coefficient, find predictors with correlation higher than 0.7
+#Using correlation coefficient, find predictors with correlation higher than 0.5
 cmatrix <- cor(spamdata)
 cmatrix
 library(reshape2)
-subset(melt(cmatrix),value>.70 & value <1.0)
-#V32  V31, V34  V31, V34  V32, V40  V32, V36  V34, V40  V34, V32  V36
+subset(melt(cmatrix),value>.60 & value <1.0)
+#V31 V30, V32 V30, V34  V30, V36  V30, V32  V31, V34  V31, V34  V32, V40  V32, V36  V34, V40  V34, V32  V36
 #V31, 32, 34, 36, 40
 #'are the pairs with more than 0.7 correleration coefficient
-
+train1 <- Train[,30:40]
+train1 <- train1[,-c(33,35,37,38,39)]
+pairs(train1)
 #Also check the negative correlation to be safe
 subset(melt(cmatrix),value< -.80 & value > -1.0)
 #There is no high negative correlation between predictors
@@ -69,10 +71,12 @@ influencePlot(model)
 
 ############################
 #Find the influential points using DFBETA
-dfbeta_score <- dfbeta
+dfbeta_score <- dfbeta(model)
 dfbeta_score
 subset(melt(dfbeta_score),value > 2)
 subset(melt(dfbeta_score),value < -2)
+
+
 
 
 ############################
@@ -159,6 +163,9 @@ inter.mod <- glm(formula = V58 ~ V53 + V7 + V25 + V27 + V56 + V16 + V46 +
      V56:V46 + V25:V44 + V45:V20 + V8:V19 + V27:V21 + V56:V24 + 
      V17:V54 + V44:V35 + V56:V28, family = binomial, data = Train)
 
+
+
+
 ################################################################################
 #Cross Validation using k-fold method (number of folds = 5)
 set.seed(2011)
@@ -181,7 +188,7 @@ eachfold
 ##########################
 #manually reduced model
 manual.large.model <- train(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
-                          + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V33 + V35 + V36 + 
+                          + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V30 + V33 + V35 + 
                             + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, method = "glm", family = 'binomial', trControl = ctrl)
 
 pred <- manual.large.model$pred
@@ -191,6 +198,22 @@ eachfold <- pred %>%
   summarise_at(vars(equal),                     
                list(Accuracy = mean))              
 eachfold
+
+########################
+#manually reduced model - 2
+manual.reduced.model2 <- train(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
+                  + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29  + V33  + V35 + V37 
+                  + V38 + V39 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
+                  + V56 + V57, data = Train, method = "glm", family = "binomial", trControl = ctrl)
+
+pred <- manual.reduced.model2$pred
+pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
+eachfold <- pred %>%  
+  group_by(Resample) %>%                         
+  summarise_at(vars(equal),                     
+               list(Accuracy = mean))              
+eachfold
+
 
 ########################
 #reduced model
@@ -247,8 +270,17 @@ tab
 
 ####################
 #Testing manually reduced model
-#Testing full model
 mod.prob = predict(manual.large.model, Test, type ="prob")
+# Marking the cases where probability is greater that 50% as "yes" for spam and marking
+pred = rep("0", nrow(Test))
+pred[mod.prob$"1">0.5] = 1
+
+tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
+tab
+
+####################
+#Testing manually reduced model-2
+mod.prob = predict(manual.reduced.model2, Test, type ="prob")
 # Marking the cases where probability is greater that 50% as "yes" for spam and marking
 pred = rep("0", nrow(Test))
 pred[mod.prob$"1">0.5] = 1
