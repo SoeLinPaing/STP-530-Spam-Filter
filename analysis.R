@@ -12,6 +12,7 @@ spamdata <- read.csv("spambase.data", header = F)
 
 attach(spamdata)
 
+
 #splitting the data into train set and test set
 train_size = floor(0.8 * nrow(spamdata))
 set.seed(102)
@@ -35,7 +36,7 @@ summary(model)
 
 #################################################################################
 #Multicollinearity check
-linear_model <- lm(V1 ~ V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
+linear_model <- lm(V58 ~V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
              + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V31 + V32 + V33 + V34 + V35 + V36 + V37 
              + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
              + V56 + V57 , data = Train)
@@ -58,8 +59,8 @@ subset(melt(cmatrix),value>.60 & value <1.0)
 #V31, 32, 34, 36, 40
 #'are the pairs with more than 0.7 correleration coefficient
 train1 <- Train[,30:40]
-train1 <- train1[,-c(33,35,37,38,39)]
-pairs(train1)
+train2 <- train1[,-c(4,6,8,9,10)]
+pairs(train2)
 #Also check the negative correlation to be safe
 subset(melt(cmatrix),value< -.80 & value > -1.0)
 #There is no high negative correlation between predictors
@@ -188,8 +189,8 @@ eachfold
 ##########################
 #manually reduced model
 manual.large.model <- train(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
-                          + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V30 + V33 + V35 + 
-                            + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, method = "glm", family = 'binomial', trControl = ctrl)
+                          + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V33 + V35 + 
+                            + V38 + V39 + V40 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, method = "glm", family = 'binomial', trControl = ctrl)
 
 pred <- manual.large.model$pred
 pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
@@ -202,8 +203,8 @@ eachfold
 ########################
 #manually reduced model - 2
 manual.reduced.model2 <- train(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
-                  + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29  + V33  + V35 + V37 
-                  + V38 + V39 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
+                  + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29  + V33 + V35 + V37 
+                  + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
                   + V56 + V57, data = Train, method = "glm", family = "binomial", trControl = ctrl)
 
 pred <- manual.reduced.model2$pred
