@@ -1,5 +1,6 @@
 rm(list=ls()) # Clean up the workspace for the new analysis
 options(max.print = 100000)
+par(mfrow = c(1,1))
 
 library(dplyr)
 library(car)
@@ -23,6 +24,7 @@ Test = spamdata[-train_ind, ]
 str(train_ind)
 sort(train_ind, decreasing = FALSE, na.last = NA)
 
+Train.woInflu <- Train
 
 #Fitting the full model
 ################################################################################
@@ -31,6 +33,8 @@ model <- glm(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 
                  + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
                  + V56 + V57 , data = Train, family = 'binomial')
 
+library("DescTools")
+PseudoR2(model)
 
 summary(model)
 
@@ -40,6 +44,7 @@ linear_model <- lm(V58 ~V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 +
              + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V31 + V32 + V33 + V34 + V35 + V36 + V37 
              + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
              + V56 + V57 , data = Train)
+
 vif(linear_model)
 
 linear_model1 <- lm(V1 ~ V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
@@ -66,9 +71,11 @@ subset(melt(cmatrix),value< -.80 & value > -1.0)
 #There is no high negative correlation between predictors
 
 
+
 ############################
 #Plot influential points
 influencePlot(model)
+
 
 ############################
 #Find the influential points using DFBETA
@@ -76,7 +83,7 @@ dfbeta_score <- dfbeta(model)
 dfbeta_score
 subset(melt(dfbeta_score),value > 2)
 subset(melt(dfbeta_score),value < -2)
-
+influencePlot(model)
 
 
 
@@ -86,14 +93,27 @@ residualPlot(model)
 
 
 ###############################################################################
-#Reduce model manually
+#Reduce model manually -1
+#remove predictors with multicollinearity
+
+manual.model <- glm(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
+                   + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29  + V33 + V35 + V37 
+                   + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
+                   + V56 + V57 , data = Train, family = 'binomial')
+#43 predictors
+PseudoR2(manual.model)
+summary(manual.model)
+
+###############################################################################
+#Reduce model manually -2
 #Two criterions are considered
 #1.Based on the full model, we will get rid of the predictors which pvalue is greater than 0.25
 
 manual.large.model <- glm(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
-             + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V33 + V35 + V36 + 
+             + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29  + V33 + V35 + V36 + 
              + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, family = 'binomial')
 #43 predictors
+PseudoR2(manual.large.model)
 
 summary(manual.large.model)
 
@@ -129,6 +149,8 @@ reduced.mod <- glm(formula = V58 ~ V53 + V7 + V25 + V27 + V56 + V16 + V46 +
         V57 + V8 + V44 + V20 + V33 + V6 + V29 + V43 + V4 + V36 + 
         V39 + V54 + V49 + V47 + V19 + V35 + V9 + V28 + V26 + V2 + 
         V15 + V38 + V30 + V22 + V12, family = binomial, data = Train)
+PseudoR2(reduced.mod)
+
 #42 predictors
 #V2+V4+V5+V6+V7+V8+V9+V12+V15+V16+V17+V19+V20+V21+V22+V23+V24+V25+V26+V27+V28+V29
 #+V30+V33+V35+V36+V38+V39+V41+V42+V43+V44+V45+V46+V47+V48+V49+V52+V53+V54+V56+V57+
@@ -189,7 +211,7 @@ eachfold
 ##########################
 #manually reduced model
 manual.large.model <- train(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
-                          + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V33 + V35 + 
+                          + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V33 + V35 + 
                             + V38 + V39 + V40 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, method = "glm", family = 'binomial', trControl = ctrl)
 
 pred <- manual.large.model$pred
@@ -223,6 +245,7 @@ reduced_mod <- train(V58 ~ V53 + V7 + V25 + V27 + V56 + V16 + V46 +
                       V57 + V8 + V44 + V20 + V33 + V6 + V29 + V43 + V4 + V36 + 
                       V39 + V54 + V49 + V47 + V19 + V35 + V9 + V28 + V26 + V2 + 
                        V15 + V38 + V30 + V22 + V12, data = Train, method = "glm", family = "binomial", trControl = ctrl)
+
 
 pred <- reduced_mod$pred
 pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
@@ -289,6 +312,7 @@ pred[mod.prob$"1">0.5] = 1
 tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
 tab
 
+
 ####################
 #Testing reduced model
 mod.prob = predict(reduced_mod, Test, type ="prob")
@@ -309,6 +333,36 @@ pred[mod.prob$"1">0.5] = 1
 tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
 tab
 
+
+################################################################################
+#Likelihood ratio testings
+lrtest(model, manual.model)
+
+
+##################################################################################
+#Normalize 55 56 57 attributes
+spamdata.subset<-spamdata[c(-55,-56,-57,-58)]
+data = spamdata[c(55,56,57)]
+##New normalised dataest is ready
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x))*100) }
+
+data.n<- as.data.frame(lapply(data[,1:3], normalize))
+spamdata.subset[55]<-data.n[1]
+spamdata.subset[56]<-data.n[2]
+spamdata.subset[57]<-data.n[3]
+spamdata.subset[58]<-spamdata[58]
+dataset<-spamdata.subset
+attach(dataset)
+#splitting the data into train set and test set
+train_size = floor(0.8 * nrow(spamdata.subset))
+set.seed(102)
+
+train_ind = sample(seq_len(nrow(spamdata.subset)), size = train_size)
+Train = spamdata.subset[train_ind, ]
+Test = spamdata.subset[-train_ind, ]
+str(train_ind)
+sort(train_ind, decreasing = FALSE, na.last = NA)
 
 ################################################################################
 #Machine learning models
@@ -335,3 +389,13 @@ mod.prob = predict(RF.model, Test)
 # Marking the cases where probability is greater that 50% as "yes" for spam and marking
 tab_RF = confusionMatrix(mod.prob,actual_outcome)
 tab_RF
+
+####################
+#k-nearest neighbour
+library('class')
+knn.60 <- knn(train=Train, test=Test, cl=Train$V58, k=60)
+knn.61 <- knn(train=Train, test=Test, cl=Train$V58, k=61)
+
+confusionMatrix(table(knn.60 ,Test$V58))
+confusionMatrix(table(knn.61 ,Test$V58))
+

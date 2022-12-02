@@ -85,6 +85,6 @@ char_freq_[:            continuous.51
 char_freq_!:            continuous.52
 char_freq_$:            continuous.
 char_freq_#:            continuous.54
-capital_run_length_average: continuous.56
-capital_run_length_longest: continuous.57
-capital_run_length_total:   continuous.
+capital_run_length_average: continuous.55
+capital_run_length_longest: continuous.56
+capital_run_length_total:   continuous.57
