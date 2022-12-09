@@ -181,8 +181,15 @@ hist(non.spam$hpl)
 hist(spam$george)
 hist(non.spam$george)
 
-hist(spam$'650')
-hist(non.spam$'650')
+h <- hist(spam$'650')
+h1 <- hist(non.spam$'650')
+
+
+plot(h, xlab = "percentage of '650' in spam mails", ylab = "fequency of occurence",
+     main = " ")
+
+plot(h1, xlab = "percentage of '650' in non-spam mails", ylab = "fequency of occurence",
+     main = "")
 
 hist(spam$lab)
 hist(non.spam$lab)
@@ -238,8 +245,14 @@ hist(non.spam$re)
 hist(spam$edu)
 hist(non.spam$edu)
 
-hist(spam$table)
-hist(non.spam$table)
+h <- hist(spam$table)
+h1 <- hist(non.spam$table)
+
+plot(h, xlab = "percentage of 'table' in spam mails", ylab = "fequency of occurence",
+     main = " ")
+
+plot(h1, xlab = "percentage of 'table' in non-spam mails", ylab = "fequency of occurence",
+     main = "")
 
 hist(spam$conference)
 hist(non.spam$conference)

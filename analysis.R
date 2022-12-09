@@ -6,6 +6,10 @@ library(dplyr)
 library(car)
 library(caret)
 library(binomTools)
+library(yardstick)
+library("DescTools")
+library(lmtest)
+
 
 setwd("C:/Users/slinp/Desktop/spambase")
 
@@ -13,10 +17,13 @@ spamdata <- read.csv("spambase.data", header = F)
 
 attach(spamdata)
 
-
+percentage_combined <- rowSums(spamdata[, 1:54])
+h <- hist(percentage_combined)
+plot(h, xlab = "combined percentage of words in each observation", ylab = "number of observations",
+     main = "Histogram of combined percentage of words in each observation")
 #splitting the data into train set and test set
-train_size = floor(0.8 * nrow(spamdata))
-set.seed(102)
+train_size = floor(0.8 * nrow(spamdata)) #80% of the data are in the train set
+set.seed(102) #set the seed to get the same sequence of random shuffling everytime
 
 train_ind = sample(seq_len(nrow(spamdata)), size = train_size)
 Train = spamdata[train_ind, ]
@@ -24,7 +31,6 @@ Test = spamdata[-train_ind, ]
 str(train_ind)
 sort(train_ind, decreasing = FALSE, na.last = NA)
 
-Train.woInflu <- Train
 
 #Fitting the full model
 ################################################################################
@@ -33,10 +39,12 @@ model <- glm(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 
                  + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
                  + V56 + V57 , data = Train, family = 'binomial')
 
-library("DescTools")
 PseudoR2(model)
-
 summary(model)
+AIC(model)
+
+
+
 
 #################################################################################
 #Multicollinearity check
@@ -46,7 +54,9 @@ linear_model <- lm(V58 ~V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 +
              + V56 + V57 , data = Train)
 
 vif(linear_model)
+#vif values are significantly shrunk for logistic regression
 
+#linear model is necessary is necessary to detect the large vif
 linear_model1 <- lm(V1 ~ V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
                    + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V30 + V31 + V32 + V33 + V34 + V35 + V36 + V37 
                    + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
@@ -59,20 +69,22 @@ vif(linear_model1)
 cmatrix <- cor(spamdata)
 cmatrix
 library(reshape2)
+
+#find the predictor pairs with more than 0.6 correlation
 subset(melt(cmatrix),value>.60 & value <1.0)
-#V31 V30, V32 V30, V34  V30, V36  V30, V32  V31, V34  V31, V34  V32, V40  V32, V36  V34, V40  V34, V32  V36
-#V31, 32, 34, 36, 40
-#'are the pairs with more than 0.7 correleration coefficient
+
+#plot the pairs with more than 0.6 correlation
 train1 <- Train[,30:40]
 train2 <- train1[,-c(4,6,8,9,10)]
 pairs(train2)
+
 #Also check the negative correlation to be safe
 subset(melt(cmatrix),value< -.80 & value > -1.0)
-#There is no high negative correlation between predictors
+#There is no negative correlation between predictors
 
 
 
-############################
+###############################################################################
 #Plot influential points
 influencePlot(model)
 
@@ -81,13 +93,15 @@ influencePlot(model)
 #Find the influential points using DFBETA
 dfbeta_score <- dfbeta(model)
 dfbeta_score
+
+#find the points with dfbeta_score of more than 2 and less than -2
 subset(melt(dfbeta_score),value > 2)
 subset(melt(dfbeta_score),value < -2)
 influencePlot(model)
 
 
 
-############################
+###############################################################################
 #residual plot
 residualPlot(model)
 
@@ -104,26 +118,32 @@ manual.model <- glm(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11
 PseudoR2(manual.model)
 summary(manual.model)
 
+barplot(manual.model$coefficients,
+        horiz = TRUE)
 ###############################################################################
 #Reduce model manually -2
 #Two criterions are considered
 #1.Based on the full model, we will get rid of the predictors which pvalue is greater than 0.25
+#2. Based on the resulted model, we will get rid of the predictors with pvalue greater than 0.1
+#Use likelihood ration test to decide which model is better
 
+#1.
 manual.large.model <- glm(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
              + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29  + V33 + V35 + V36 + 
              + V38 + V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, family = 'binomial')
 #43 predictors
 PseudoR2(manual.large.model)
-
 summary(manual.large.model)
 
+
+#2.
 manual.small.model <- glm(V58 ~  V2 + V5 + V6 + V7 + V8 + V9 + V15 + V16 + V17 + V19 
                           + V20 + V21 + V23 + V24 + V25 + V26 + V27 + V28 + V33 + V35 + V36 + 
                              V39 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V56 + V57 , data = Train, family = 'binomial')
 
 summary(manual.small.model)
 
-library(lmtest)
+
 lrtest(manual.large.model, manual.small.model)
 #null: use reduced model
 #alternative: use full model
@@ -131,6 +151,10 @@ lrtest(manual.large.model, manual.small.model)
 
 #2. Based on the multicolinearity test, the 32 and 34 should be rejected. However, they were already rejected based on p value criterion.
 #10, 14 are not in the AIC model. 41 is not in manually reduced model. (mail, report,cs)
+
+
+
+
 ################################################################################
 # Reduced model using Automated forward selection with AIC
 min.mod <- glm(V58 ~ 1, data=Train, family=binomial)
@@ -150,13 +174,12 @@ reduced.mod <- glm(formula = V58 ~ V53 + V7 + V25 + V27 + V56 + V16 + V46 +
         V39 + V54 + V49 + V47 + V19 + V35 + V9 + V28 + V26 + V2 + 
         V15 + V38 + V30 + V22 + V12, family = binomial, data = Train)
 PseudoR2(reduced.mod)
-
+summary(reduced.mod)
+AIC(reduced.mod)
 #42 predictors
 #V2+V4+V5+V6+V7+V8+V9+V12+V15+V16+V17+V19+V20+V21+V22+V23+V24+V25+V26+V27+V28+V29
 #+V30+V33+V35+V36+V38+V39+V41+V42+V43+V44+V45+V46+V47+V48+V49+V52+V53+V54+V56+V57+
 
-################################################################################
-#Compare manual model vs AIC using confusion matrix because they are not nested models
 
 ################################################################################
 #interaction model. initial model for it is from the reduced model 
@@ -187,7 +210,7 @@ inter.mod <- glm(formula = V58 ~ V53 + V7 + V25 + V27 + V56 + V16 + V46 +
      V17:V54 + V44:V35 + V56:V28, family = binomial, data = Train)
 
 
-
+summary(inter.mod)
 
 ################################################################################
 #Cross Validation using k-fold method (number of folds = 5)
@@ -208,11 +231,29 @@ eachfold <- pred %>%
                list(Accuracy = mean))              
 eachfold
 
+sum(eachfold$Accuracy)/5
+########################
+#manually reduced model - 1
+manual.reduced.model1 <- train(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
+                  + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29  + V33 + V35 + V37 
+                  + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
+                  + V56 + V57, data = Train, method = "glm", family = "binomial", trControl = ctrl)
+
+pred <- manual.reduced.model1$pred
+pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
+eachfold <- pred %>%  
+  group_by(Resample) %>%                         
+  summarise_at(vars(equal),                     
+               list(Accuracy = mean))              
+eachfold
+
+sum(eachfold$Accuracy)/5
+
 ##########################
-#manually reduced model
+#manually reduced model -2
 manual.large.model <- train(V58 ~  V2 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V12 + V14 + V15 + V16 + V17 + V19 
-                          + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V33 + V35 + 
-                            + V38 + V39 + V40 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, method = "glm", family = 'binomial', trControl = ctrl)
+                            + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29 + V33 + V35 + 
+                              + V38 + V39 + V40 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V52 + V53 + V54 + V56 + V57 , data = Train, method = "glm", family = 'binomial', trControl = ctrl)
 
 pred <- manual.large.model$pred
 pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
@@ -222,21 +263,7 @@ eachfold <- pred %>%
                list(Accuracy = mean))              
 eachfold
 
-########################
-#manually reduced model - 2
-manual.reduced.model2 <- train(V58 ~ V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11 + V12 + V13 + V14 + V15 + V16 + V17 + V18 + V19 
-                  + V20 + V21 + V22 + V23 + V24 + V25 + V26 + V27 + V28 + V29  + V33 + V35 + V37 
-                  + V38 + V39 + V40 + V41 + V42 + V43 + V44 + V45 + V46 + V47 + V48 + V49 + V50 + V51 + V52 + V53 + V54 + V55 
-                  + V56 + V57, data = Train, method = "glm", family = "binomial", trControl = ctrl)
-
-pred <- manual.reduced.model2$pred
-pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
-eachfold <- pred %>%  
-  group_by(Resample) %>%                         
-  summarise_at(vars(equal),                     
-               list(Accuracy = mean))              
-eachfold
-
+sum(eachfold$Accuracy)/5
 
 ########################
 #reduced model
@@ -254,6 +281,7 @@ eachfold <- pred %>%
   summarise_at(vars(equal),                     
                list(Accuracy = mean))              
 eachfold
+sum(eachfold$Accuracy)/5
 
 ###########################
 #interaction model
@@ -279,6 +307,7 @@ eachfold <- pred %>%
   summarise_at(vars(equal),                     
                list(Accuracy = mean))              
 eachfold
+sum(eachfold$Accuracy)/5
 
 ################################################################################
 #Testing model performance on test set
@@ -292,8 +321,16 @@ pred[mod.prob$"1">0.5] = 1
 tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
 tab
 
+#Plot confusion matrix
+truth_predicted <- data.frame(Test$V58, pred)
+truth_predicted$Test.V58 <- as.factor(truth_predicted$Test.V58)
+truth_predicted$pred <- as.factor(truth_predicted$pred)
+cm <- conf_mat(truth_predicted, Test.V58, pred)
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")+ggtitle("Full model")+
+  theme(plot.title = element_text(hjust = 0.5))
 ####################
-#Testing manually reduced model
+#Testing manually reduced model -2
 mod.prob = predict(manual.large.model, Test, type ="prob")
 # Marking the cases where probability is greater that 50% as "yes" for spam and marking
 pred = rep("0", nrow(Test))
@@ -302,9 +339,17 @@ pred[mod.prob$"1">0.5] = 1
 tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
 tab
 
+#Plot confusion matrix
+truth_predicted <- data.frame(Test$V58, pred)
+truth_predicted$Test.V58 <- as.factor(truth_predicted$Test.V58)
+truth_predicted$pred <- as.factor(truth_predicted$pred)
+cm <- conf_mat(truth_predicted, Test.V58, pred)
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")+ggtitle("Reduced model 2")+
+  theme(plot.title = element_text(hjust = 0.5))
 ####################
-#Testing manually reduced model-2
-mod.prob = predict(manual.reduced.model2, Test, type ="prob")
+#Testing manually reduced model-1
+mod.prob = predict(manual.reduced.model1, Test, type ="prob")
 # Marking the cases where probability is greater that 50% as "yes" for spam and marking
 pred = rep("0", nrow(Test))
 pred[mod.prob$"1">0.5] = 1
@@ -312,6 +357,14 @@ pred[mod.prob$"1">0.5] = 1
 tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
 tab
 
+#Plot confusion matrix
+truth_predicted <- data.frame(Test$V58, pred)
+truth_predicted$Test.V58 <- as.factor(truth_predicted$Test.V58)
+truth_predicted$pred <- as.factor(truth_predicted$pred)
+cm <- conf_mat(truth_predicted, Test.V58, pred)
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")+ggtitle("Reduced model 1")+
+  theme(plot.title = element_text(hjust = 0.5))
 
 ####################
 #Testing reduced model
@@ -323,6 +376,16 @@ pred[mod.prob$"1">0.5] = 1
 tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
 tab
 
+#Plot confusion matrix
+truth_predicted <- data.frame(Test$V58, pred)
+truth_predicted$Test.V58 <- as.factor(truth_predicted$Test.V58)
+truth_predicted$pred <- as.factor(truth_predicted$pred)
+cm <- conf_mat(truth_predicted, Test.V58, pred)
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")+ggtitle("AIC Reduced model")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+
 ####################
 #Testing interaction model
 mod.prob = predict(interaction_mod, Test, type ="prob")
@@ -333,7 +396,14 @@ pred[mod.prob$"1">0.5] = 1
 tab = confusionMatrix(data = factor(pred),reference = factor(Test$V58), positive = "1")
 tab
 
-
+#Plot confusion matrix
+truth_predicted <- data.frame(Test$V58, pred)
+truth_predicted$Test.V58 <- as.factor(truth_predicted$Test.V58)
+truth_predicted$pred <- as.factor(truth_predicted$pred)
+cm <- conf_mat(truth_predicted, Test.V58, pred)
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")+ggtitle("Interaction model")+
+  theme(plot.title = element_text(hjust = 0.5))
 ################################################################################
 #Likelihood ratio testings
 lrtest(model, manual.model)
@@ -378,7 +448,16 @@ mod.prob = predict(naive_bayes.model, Test)
 # Marking the cases where probability is greater that 50% as "yes" for spam and marking
 tab = confusionMatrix(mod.prob,actual_outcome)
 tab
-
+#Plot confusion matrix
+pred = rep("0", nrow(Test))
+pred = mod.prob
+truth_predicted <- data.frame(Test$V58, pred)
+truth_predicted$Test.V58 <- as.factor(truth_predicted$Test.V58)
+truth_predicted$pred <- as.factor(truth_predicted$pred)
+cm <- conf_mat(truth_predicted, Test.V58, pred)
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")+ggtitle("Naive Bayes")+
+  theme(plot.title = element_text(hjust = 0.5))
 
 ######################
 #Random forest
@@ -389,6 +468,14 @@ mod.prob = predict(RF.model, Test)
 # Marking the cases where probability is greater that 50% as "yes" for spam and marking
 tab_RF = confusionMatrix(mod.prob,actual_outcome)
 tab_RF
+#Plot confusion matrix
+truth_predicted <- data.frame(Test$V58, mod.prob)
+truth_predicted$Test.V58 <- as.factor(truth_predicted$Test.V58)
+truth_predicted$mod.prob <- as.factor(truth_predicted$mod.prob)
+cm <- conf_mat(truth_predicted, Test.V58, mod.prob)
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")+ggtitle("Random Forest")+
+  theme(plot.title = element_text(hjust = 0.5))
 
 ####################
 #k-nearest neighbour
@@ -398,4 +485,12 @@ knn.61 <- knn(train=Train, test=Test, cl=Train$V58, k=61)
 
 confusionMatrix(table(knn.60 ,Test$V58))
 confusionMatrix(table(knn.61 ,Test$V58))
+#Plot confusion matrix
+truth_predicted <- data.frame(Test$V58, knn.60)
+truth_predicted$Test.V58 <- as.factor(truth_predicted$Test.V58)
+truth_predicted$knn.60 <- as.factor(truth_predicted$knn.60)
+cm <- conf_mat(truth_predicted, Test.V58, knn.60)
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")+ggtitle("KNN-60")+
+  theme(plot.title = element_text(hjust = 0.5))
 
